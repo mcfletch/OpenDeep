@@ -5,7 +5,7 @@ import unittest
 #from opendeep.log.logger import config_root_logger
 from ..standard_datasets.tedlium import stm
 
-class TestLIUMSTM(unittest.TestCase):
+class TestSTM(unittest.TestCase):
 
     def setUp(self):
         pass
