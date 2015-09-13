@@ -10,7 +10,7 @@ class STMParser( object ):
     
         Assumes that the text is actually utf-8 encoded, which hasn't been confirmed
         
-        Is just written by inspecting the file, not by looking up the spec
+        Is just written by inspecting the file, not by looking up a spec
     
     Usage::
     
@@ -59,7 +59,13 @@ class STMSegment( object ):
             self.reader, self.start,self.stop, self.transcript
         )
 
-def parse_all_stms( filepath ):
+def _parse_all_stms( filepath ):
+    """Trivial "does it crash" manual test operation
+    
+    This just confirms that all of the TED LIUM corpus can
+    be parsed. It doesn't necessarily mean that the parsing 
+    is *correct*
+    """
     import os
     for path,dirs,files in os.walk(filepath):
         stms = [x for x in files if x.lower().endswith('.stm')]
@@ -72,4 +78,4 @@ def parse_all_stms( filepath ):
 if __name__ == '__main__':
     import sys
     logging.basicConfig(level=logging.INFO)
-    parse_all_stms( sys.argv[1] )
+    _parse_all_stms( sys.argv[1] )
