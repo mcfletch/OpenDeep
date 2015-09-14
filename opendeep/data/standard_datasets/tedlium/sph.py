@@ -35,7 +35,7 @@ def parse_sph_header( fh ):
         file_format['big_endian'] = False
     return file_format
 
-def load_audio_data( fh, format ):
+def load_audio_data( fh, format, force_native=False ):
     """Given format and a file handle, load the audio data in expected format
     
     Assumes the TED LIUM data-format is loosely followed, so
@@ -43,8 +43,9 @@ def load_audio_data( fh, format ):
     """
     fh.seek(1024)
     array = numpy.fromfile( fh, dtype = ('>' if format['big_endian'] else '<') + 'H' )
-    if not array.dtype.byteorder == '=':
-        array.byteswap( True )
+    if force_native:
+        if not array.dtype.byteorder == '=':
+            array.byteswap( True )
     return array
 
 def _parse_all_sphs( filepath ):
