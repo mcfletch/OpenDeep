@@ -5,6 +5,13 @@ in "STM" format and audio in NIST SPH format. The
 Loader here attempts to make them usable as in chunks
 so that you can train individual "utterances" from a 
 speech.
+
+TED LIUM requires registration, and may not be redistributed,
+so the data-files here have to be downloaded by each person
+from the `LIUM site`_.
+
+.. _`LIUM site`: http://www-lium.univ-lemans.fr/en/content/form-downloads?equipe=parole&projet=tedlium&fichier=TEDLIUM_release2.tar.gz
+    
 """
 import logging, subprocess, os
 log = logging.getLogger(__name__)
