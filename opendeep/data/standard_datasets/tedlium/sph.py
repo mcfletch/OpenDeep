@@ -81,9 +81,6 @@ def _parse_all_sphs( filepath ):
             assert format['channel_count'] == 1, (sph,format)
             assert format['sample_n_bytes'] == 2, format
             log.info("%s format %s",full_path,format)
-#            log.info("Loading audio for: %s",sph)
-#            array = load_audio_data( source, format )
-#            log.info("  %s samples loaded", len(array) )
     log.info("Parsed format for %s files", count )
 
 if __name__ == '__main__':
