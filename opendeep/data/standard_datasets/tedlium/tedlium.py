@@ -41,16 +41,27 @@ class Speech( object ):
             start,stop = int(segment.start*sample_rate),int(segment.stop*sample_rate)+1
             segment.audio_data = data[start:stop]
             yield segment
-    def play(self):
-        format = self.format
+    
+    def playing_pipe(self):
+        """Create a pipe to play audio in our format"""
         pipe = subprocess.Popen([
             'gst-launch',
                 'fdsrc',
                     'fd=0',
                 '!',
-                    'audio/x-raw-int,width=16,channels=1,format=U16LE,rate=%(sample_rate)s'%format,
+                    'audio/x-raw-int,width=16,channels=1,format=%(gst_format)s,rate=%(sample_rate)s'%self.format,
                 '!', 'alsasink'
         ],stdin=subprocess.PIPE)
+        return pipe
+    
+    def play(self):
+        """Use gstreamer-utils to play our audio to alsa while logging transcripts
+        
+        This is intended primarily to allow you to hear what
+        the NN is getting
+        
+        """
+        pipe = self.playing_pipe()
         for segment in self:
             log.info( 'Transcript: %s', segment.transcript)
             pipe.stdin.write(segment.audio_data.tostring()) # yes, stupid, should do a direct binary write

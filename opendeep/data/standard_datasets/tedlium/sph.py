@@ -5,7 +5,10 @@ in the format specified in the header.
 """
 import logging
 import numpy
+import struct
 log = logging.getLogger(__name__)
+
+MACHINE_LE = struct.pack("@i",1) == b'\x01\x00\x00\x00'
 
 def parse_sph_header( fh ):
     """Read the file-format header for an sph file"""
@@ -33,6 +36,10 @@ def parse_sph_header( fh ):
         file_format['big_endian'] = False
     else:
         file_format['big_endian'] = True
+    if MACHINE_LE:
+        file_format['gst_format'] = 'U16LE'
+    else:
+        file_format['gst_format'] = 'U16BE'
     return file_format
 
 def load_audio_data( fh, format, force_native=False ):
@@ -40,6 +47,8 @@ def load_audio_data( fh, format, force_native=False ):
     
     Assumes the TED LIUM data-format is loosely followed, so
     if the file isn't quite correct we'll just error out.
+    The loader's been run over the v2 corpus, so it should 
+    be fine for loading *this* dataset.
     """
     fh.seek(1024)
     array = numpy.fromfile( fh, dtype = ('>' if format['big_endian'] else '<') + 'H' )
@@ -60,7 +69,8 @@ def _parse_all_sphs( filepath ):
     for path,dirs,files in os.walk(filepath):
         sphs = [x for x in files if x.lower().endswith('.sph')]
         for sph in sphs:
-            source = open(os.path.join(path,sph))
+            full_path = os.path.join(path,sph)
+            source = open(full_path,'rb')
             format = parse_sph_header( source )
             count += 1
             assert source.tell() == 1024, source.tell()
@@ -70,10 +80,10 @@ def _parse_all_sphs( filepath ):
             assert format['sample_coding'] == 'pcm', format
             assert format['channel_count'] == 1, (sph,format)
             assert format['sample_n_bytes'] == 2, format
-            #print(format)
-            log.info("Loading audio for: %s",sph)
-            array = load_audio_data( source, format )
-            log.info("  %s samples loaded", len(array) )
+            log.info("%s format %s",full_path,format)
+#            log.info("Loading audio for: %s",sph)
+#            array = load_audio_data( source, format )
+#            log.info("  %s samples loaded", len(array) )
     log.info("Parsed format for %s files", count )
 
 if __name__ == '__main__':
