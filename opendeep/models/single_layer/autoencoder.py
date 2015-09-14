@@ -1,5 +1,5 @@
 """
-This module contains different autoencoders to use. Autoencoders are nonprobabilitic, generative models
+This module contains different autoencoders to use. Autoencoders are nonprobabilistic, generative models
 that try to reconstruct an input from a hidden layer.
 input <-> hidden, or laid out, X -> H -> X
 """
