@@ -54,6 +54,7 @@ class STMSegment( object ):
         self.reader,self.start,self.stop,self.transcript,self.title,self.num,self.speaker,self.speakermeta = (
             reader,start,stop,transcript,title,num,speaker,speakermeta
         )
+        self.audio_data = None
     def __unicode__(self):
         return u'%s %s:%s %s'%( 
             self.reader, self.start,self.stop, self.transcript

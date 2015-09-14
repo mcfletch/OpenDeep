@@ -30,9 +30,9 @@ def parse_sph_header( fh ):
                     value = int(value, 10)
                 file_format[key] = value 
     if file_format['sample_byte_format'] == '01':
-        file_format['big_endian'] = True
-    else:
         file_format['big_endian'] = False
+    else:
+        file_format['big_endian'] = True
     return file_format
 
 def load_audio_data( fh, format, force_native=False ):
@@ -72,7 +72,8 @@ def _parse_all_sphs( filepath ):
             assert format['sample_n_bytes'] == 2, format
             #print(format)
             log.info("Loading audio for: %s",sph)
-            load_audio_data( source, format )
+            array = load_audio_data( source, format )
+            log.info("  %s samples loaded", len(array) )
     log.info("Parsed format for %s files", count )
 
 if __name__ == '__main__':
