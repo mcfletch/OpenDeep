@@ -5,21 +5,21 @@ log = logging.getLogger(__name__)
 
 class STMParser( object ):
     """Read an iterable of an STM data-file (transcript) and yield segments
-    
+
     Notes:
-    
+
         Assumes that the text is actually utf-8 encoded, which hasn't been confirmed
-        
+
         Is just written by inspecting the file, not by looking up a spec
-    
+
     Usage::
-    
+
         for segment in STMParser( open( 'path-to-stm.stm' ) ):
             utterance = audio[
                 int(segment.start*(samples_per_second)):int(segment.stop*(samples_per_second))
             ]
             yield segment, utterance
-    
+
     """
     def __init__(self, iterable ):
         self.iterable = iterable
@@ -38,7 +38,7 @@ class STMParser( object ):
                 start,stop = float(start),float(stop)
                 if (
                     speaker in self.IGNORE_SPEAKERS
-                    or 
+                    or
                     transcript in self.IGNORE_TRANSCRIPT
                 ):
                     continue
@@ -55,16 +55,17 @@ class STMSegment( object ):
             reader,start,stop,transcript,title,num,speaker,speakermeta
         )
         self.audio_data = None
+        self.speech = None
     def __unicode__(self):
-        return u'%s %s:%s %s'%( 
+        return u'%s %s:%s %s'%(
             self.reader, self.start,self.stop, self.transcript
         )
 
 def _parse_all_stms( filepath ):
     """Trivial "does it crash" manual test operation
-    
+
     This just confirms that all of the TED LIUM corpus can
-    be parsed. It doesn't necessarily mean that the parsing 
+    be parsed. It doesn't necessarily mean that the parsing
     is *correct*
     """
     import os

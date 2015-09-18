@@ -36,6 +36,7 @@ class TEDLIUMDataSet(DataSet):
     def __init__(
         self,
         path='datasets/TEDLIUM_release2',
+        window_duration = 0.01,
     ):
         if not os.path.exists(path):
             if os.path.exists(path+'.tar.gz'):
@@ -51,20 +52,20 @@ class TEDLIUMDataSet(DataSet):
                 }
             )
         path = os.path.realpath(path)
-        train_speeches = [
+        self.train_speeches = train_speeches = [
             tedlium.Speech( sph )
             for sph in file_ops.find_files(
                 path, '.*[/]train[/]sph[/].*[.]sph',
             )
         ]
-        test_speeches = [
+        self.test_speeches = test_speeches = [
             tedlium.Speech( sph )
             for sph in file_ops.find_files(
                 path, '.*[/]test[/]sph[/].*[.]sph',
             )
         ]
-        valid_speeches = [
-            tedlium.Speech( sph )
+        self.valid_speeches = valid_speeches = [
+            tedlium.Speech( sph, window_duration=window_duration )
             for sph in file_ops.find_files(
                 path, '.*[/]dev[/]sph[/].*[.]sph',
             )
