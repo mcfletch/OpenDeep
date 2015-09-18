@@ -7,31 +7,69 @@ import logging
 import numpy
 import struct
 log = logging.getLogger(__name__)
+try:
+    long
+except NameError:
+    long = int
 
 MACHINE_LE = struct.pack("@i",1) == b'\x01\x00\x00\x00'
 
-def parse_sph_header( fh ):
+class SPHFile( object ):
+    """Wrap up an SPHFile in a convenient format"""
+    def __init__(self,filename):
+        self.filename = filename
+    def __str__(self):
+        return '%s(%s)'%(self.__class__.__name__,self.filename)
+    _byte_array = None
+    _format = None
+    @property
+    def byte_array(self):
+        if self._byte_array is None:
+            self._byte_array = numpy.memmap( self.filename, dtype=numpy.uint8, mode='r')
+        return self._byte_array
+    @property
+    def audio_array(self):
+        """Get our audio array in its appropriate format"""
+        dtype = ('>' if self.format['big_endian'] else '<') + 'H'
+        return self.byte_array[1024:].view(dtype)
+    @property
+    def format(self):
+        """Get our parsed format header"""
+        if self._format is None:
+            content = self.byte_array[:1024].tobytes()
+            self._format = parse_sph_header(content)
+        return self._format
+    @property
+    def needs_byteswap(self):
+        """Do we need to byte-swap the array if we want to represent in native format?"""
+        return self.format['big_endian'] == MACHINE_LE
+    def audio_segment(self, start, stop):
+        """Given floating-point start/stop offsets in seconds get audio data-slice"""
+        rate = self.format['sample_rate']
+        return self.audio_array[long(start*rate):long(stop*rate)+1]
+
+def parse_sph_header( content ):
     """Read the file-format header for an sph file"""
     file_format = {
         # there are the sphere defaults, though the real content
         # isn't going to have this format, normally...
-        'sample_rate':8000, 
-        'channel_count':1, 
+        'sample_rate':8000,
+        'channel_count':1,
         'sample_byte_format': '01', # little-endian
-        'sample_n_bytes':2, 
-        'sample_sig_bits': 16, 
-        'sample_coding': 'pcm', 
+        'sample_n_bytes':2,
+        'sample_sig_bits': 16,
+        'sample_coding': 'pcm',
     }
     end = 'end_head'
-    for line in fh.read(1024).splitlines():
+    for line in content.strip(b'\000').splitlines():
         if line.startswith(end):
-            break 
+            break
         for key in file_format.keys():
             if line.startswith(key):
                 _, format, value = line.split(None, 3)
                 if format == '-i':
                     value = int(value, 10)
-                file_format[key] = value 
+                file_format[key] = value
     if file_format['sample_byte_format'] == '01':
         file_format['big_endian'] = False
     else:
@@ -42,26 +80,11 @@ def parse_sph_header( fh ):
         file_format['gst_format'] = 'U16BE'
     return file_format
 
-def load_audio_data( fh, format, force_native=False ):
-    """Given format and a file handle, load the audio data in expected format
-    
-    Assumes the TED LIUM data-format is loosely followed, so
-    if the file isn't quite correct we'll just error out.
-    The loader's been run over the v2 corpus, so it should 
-    be fine for loading *this* dataset.
-    """
-    fh.seek(1024)
-    array = numpy.fromfile( fh, dtype = ('>' if format['big_endian'] else '<') + 'H' )
-    if force_native:
-        if not array.dtype.byteorder == '=':
-            array.byteswap( True )
-    return array
-
 def _parse_all_sphs( filepath ):
     """Trivial "does it crash" manual test operation
-    
+
     This just confirms that all of the TED LIUM corpus can
-    be format-parsed. It doesn't necessarily mean that the parsing 
+    be format-parsed. It doesn't necessarily mean that the parsing
     is *correct*
     """
     import os
@@ -70,12 +93,10 @@ def _parse_all_sphs( filepath ):
         sphs = [x for x in files if x.lower().endswith('.sph')]
         for sph in sphs:
             full_path = os.path.join(path,sph)
-            source = open(full_path,'rb')
-            format = parse_sph_header( source )
+            handler = SPHFile(full_path)
+            format = handler.format
             count += 1
-            assert source.tell() == 1024, source.tell()
-            source.seek(0)
-            content = source.read(1024)
+            content = handler.byte_array[:1024].tobytes()
             assert format['sample_rate'] in (8000,16000), content
             assert format['sample_coding'] == 'pcm', format
             assert format['channel_count'] == 1, (sph,format)
