@@ -7,3 +7,4 @@ slow connections.
 """
 import os
 DEFAULT_DATASET_PATH = os.path.expanduser('~/.config/opendeep/datasets')
+DEFAULT_TEDLIUM_DATASET_PATH = os.path.join(DEFAULT_DATASET_PATH,'TEDLIUM_release2')

@@ -1,8 +1,8 @@
 """OpenDeep-specific DataSet API for the TEDLIUM corpus"""
-import os, itertools, logging
+import os, itertools, logging, math
 from opendeep.data.dataset import Dataset
 from opendeep.utils import file_ops
-from opendeep.data.standard_datasets.tedlium import DEFAULT_DATASET_PATH
+from opendeep.data.standard_datasets.tedlium import DEFAULT_TEDLIUM_DATASET_PATH
 from opendeep.data.standard_datasets.tedlium import tedlium
 
 log = logging.getLogger(__name__)
@@ -30,7 +30,8 @@ class AudioStream(object):
         self.speeches = speeches
     def __iter__(self):
         for segment in all_segments(self.speeches):
-            yield segment.audio_data
+            for fragment in segment.audio_data.astype('f'):
+                yield fragment
 
 class TranscriptStream(object):
     def __init__(self,speeches):
@@ -44,10 +45,10 @@ class TEDLIUMDataset(Dataset):
     """Provides the OpenDeep-specific DataSet objects"""
     def __init__(
         self,
-        path=os.path.join(DEFAULT_DATASET_PATH,'TEDLIUM_release2'),
+        path=DEFAULT_TEDLIUM_DATASET_PATH,
         window_duration = 0.01,
     ):
-        self.window_size = int(window_duration * 16000)
+        self.window_size = 2**int(math.ceil(math.log(int(window_duration * 16000),2)))
         if not os.path.exists(path):
             if os.path.exists(path+'.tar.gz'):
                 # Note: this could, in theory overwrite anything on disk, as the Python
@@ -64,19 +65,19 @@ class TEDLIUMDataset(Dataset):
         path = os.path.realpath(path)
         log.info("Searching for speeches")
         self.train_speeches = train_speeches = [
-            tedlium.Speech( sph )
+            tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]train[/]sph[/].*[.]sph',
             )
         ]
         self.test_speeches = test_speeches = [
-            tedlium.Speech( sph )
+            tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]test[/]sph[/].*[.]sph',
             )
         ]
         self.valid_speeches = valid_speeches = [
-            tedlium.Speech( sph, window_duration=window_duration )
+            tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]dev[/]sph[/].*[.]sph',
             )
@@ -91,3 +92,13 @@ class TEDLIUMDataset(Dataset):
             valid_inputs=valid_inputs,valid_targets=valid_targets,
             test_inputs=test_inputs,test_targets=test_targets,
         )
+
+def test_minibatch():
+    """Test that we get real minibatches across the dataset"""
+    import numpy
+    from opendeep.utils.batch import minibatch
+    dataset = TEDLIUMDataset()
+    inputs = dataset.train_inputs
+    first = iter(minibatch( inputs, batch_size=100 )).next()
+    assert isinstance(first, numpy.ndarray), first
+    assert first.shape == (100,dataset.window_size), first.shape

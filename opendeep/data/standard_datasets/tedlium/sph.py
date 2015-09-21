@@ -17,10 +17,10 @@ MACHINE_LE = struct.pack("@i",1) == b'\x01\x00\x00\x00'
 
 class SPHFile( object ):
     """Wrap up an SPHFile in a convenient format"""
-    def __init__(self,filename,window_duration=.01):
-        """Initialize with filename and audio window duration (in seconds)"""
+    def __init__(self,filename,window_size=256):
+        """Initialize with filename and audio window size (in samples)"""
         self.filename = filename
-        self.window_duration = window_duration
+        self.window_size = window_size
     def __str__(self):
         return '%s(%s)'%(self.__class__.__name__,self.filename)
     _byte_array = None
@@ -43,7 +43,6 @@ class SPHFile( object ):
         if self._format is None:
             content = self.byte_array[:1024].tobytes()
             self._format = parse_sph_header(content)
-            self.window_size = 2**int(math.ceil(math.log(int(self.window_duration * self._format['sample_rate']),2)))
         return self._format
     @property
     def needs_byteswap(self):
@@ -57,10 +56,9 @@ class SPHFile( object ):
     def audio_segment(self, start, stop):
         """Given floating-point start/stop offsets in seconds get audio data-slice
 
-        This uses self.window_size (derived from our sample rate and window_duration)
-        to produce arrays that are a multiple of self.window_size whenever possible,
-        which should be in all cases for TEDLIUM, but might not be the case if there
-        were a *very* short data file involved.
+        This uses self.window_size to produce arrays that are a multiple of
+        self.window_size whenever possible, which should be in all cases for TEDLIUM,
+        but might not be the case if there a *very* short data file involved.
 
         TODO: this likely *isn't* the right way to produce the audio segments, it
         should be a sliding window across the arrays where we overlap considerably

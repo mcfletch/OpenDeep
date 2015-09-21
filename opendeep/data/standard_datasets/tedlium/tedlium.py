@@ -15,13 +15,13 @@ from the `LIUM site`_.
 """
 import logging, subprocess, os, random
 log = logging.getLogger(__name__)
-from opendeep.data.standard_datasets.tedlium import stm, sph
+from opendeep.data.standard_datasets.tedlium import stm, sph, DEFAULT_TEDLIUM_DATASET_PATH
 
 class Speech( object ):
     """Binds together audio and transcription for a given speech"""
-    def __init__(self, sph_file, stm_file=None, window_duration=0.01 ):
+    def __init__(self, sph_file, stm_file=None, window_size=256 ):
         """Initialize with a pointer to the two data-files on disk"""
-        self.sph_file = sph.SPHFile(sph_file,window_duration=window_duration)
+        self.sph_file = sph.SPHFile(sph_file,window_size=window_size)
         if stm_file is None:
             base = os.path.basename( sph_file )
             stm_file = os.path.join(
@@ -75,11 +75,12 @@ class Speech( object ):
         for segment in self:
             self.play_segment(pipe,segment)
 
-def random_walk( directory ):
+def random_walk( directory=DEFAULT_TEDLIUM_DATASET_PATH ):
     """Do a random walk of directory loading fragments of speeches"""
     import os
     count = 0
     filenames = []
+    log.info('Doing random walk of %s',directory)
     for path,dirs,files in os.walk(directory):
         sphs = [x for x in files if x.lower().endswith('.sph')]
         filenames.extend([
@@ -95,9 +96,9 @@ def random_walk( directory ):
         segments = list(speech)
         segment = random.choice(segments)
         log.info("  Segment @%ss",segment.start)
-        #speech.play_segment(pipe,segment)
+        speech.play_segment(pipe,segment)
 
 if __name__ == '__main__':
     import sys
     logging.basicConfig(level=logging.INFO)
-    random_walk( sys.argv[1] )
+    random_walk( *sys.argv[1:] )
