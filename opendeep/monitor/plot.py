@@ -109,12 +109,12 @@ class Plot(object):
             The list of string hex codes for colors to cycle through when creating new lines on the same figure.
         """
         # Make sure Bokeh is available
-        if BOKEH_AVAILABLE:
-            monitor_channels = raise_to_list(monitor_channels)
-            if monitor_channels is None:
-                monitor_channels = []
+        monitor_channels = raise_to_list(monitor_channels)
+        if monitor_channels is None:
+            monitor_channels = []
 
-            self.channels = monitor_channels
+        self.channels = monitor_channels
+        if BOKEH_AVAILABLE:
             self.plots = {}
             self.colors = colors
             self.bokeh_doc_name = bokeh_doc_name
