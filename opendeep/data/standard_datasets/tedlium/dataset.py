@@ -1,7 +1,11 @@
 """OpenDeep-specific DataSet API for the TEDLIUM corpus"""
-import os
+import os, itertools, logging
 from opendeep.data.dataset import Dataset
 from opendeep.utils import file_ops
+from opendeep.data.standard_datasets.tedlium import DEFAULT_DATASET_PATH
+from opendeep.data.standard_datasets.tedlium import tedlium
+
+log = logging.getLogger(__name__)
 
 LIUM_BASE = 'http://www-lium.univ-lemans.fr'
 TEDLIUM_DOWNLOAD_URL = '/en/content/form-downloads?equipe=parole&projet=tedlium&fichier=TEDLIUM_release2.tar.gz'
@@ -16,28 +20,34 @@ def all_segments( speeches ):
     for speech in speeches:
         for segment in speech:
             yield segment
-def raw_audio( segments ):
-    """Iterate over audio arrays of all segments"""
-    for segment in segments:
-        yield segment.audio_data
-def transcripts( segments ):
-    """Iterate over all transcripts of all segments"""
-    for segment in segments:
-        yield segment.transcript
 
 def inputs_and_targets( speeches ):
     """Create input and target iterables from speeches"""
-    inputs,targets = itertools.tee(all_segments(speeches))
-    inputs,targets = raw_audio(inputs),transcripts(targets)
-    return inputs,targets
+    return AudioStream(speeches),TranscriptStream(speeches)
 
-class TEDLIUMDataSet(DataSet):
+class AudioStream(object):
+    def __init__(self,speeches):
+        self.speeches = speeches
+    def __iter__(self):
+        for segment in all_segments(self.speeches):
+            yield segment.audio_data
+
+class TranscriptStream(object):
+    def __init__(self,speeches):
+        self.speeches = speeches
+    def __iter__(self):
+        for segment in all_segments(self.speeches):
+            yield segment.transcript
+
+
+class TEDLIUMDataset(Dataset):
     """Provides the OpenDeep-specific DataSet objects"""
     def __init__(
         self,
-        path='datasets/TEDLIUM_release2',
+        path=os.path.join(DEFAULT_DATASET_PATH,'TEDLIUM_release2'),
         window_duration = 0.01,
     ):
+        self.window_size = int(window_duration * 16000)
         if not os.path.exists(path):
             if os.path.exists(path+'.tar.gz'):
                 # Note: this could, in theory overwrite anything on disk, as the Python
@@ -52,6 +62,7 @@ class TEDLIUMDataSet(DataSet):
                 }
             )
         path = os.path.realpath(path)
+        log.info("Searching for speeches")
         self.train_speeches = train_speeches = [
             tedlium.Speech( sph )
             for sph in file_ops.find_files(
@@ -70,11 +81,12 @@ class TEDLIUMDataSet(DataSet):
                 path, '.*[/]dev[/]sph[/].*[.]sph',
             )
         ]
+        log.info("Creating speech segments (utterance records)")
         train_inputs,train_targets = inputs_and_targets( train_speeches )
         valid_inputs,valid_targets = inputs_and_targets( valid_speeches )
         test_inputs,test_targets = inputs_and_targets( test_speeches )
-        super(TEDLIUMDataSet,self).__init__(
-            path = path,
+        log.info("Initializing the OpenDeep dataset")
+        super(TEDLIUMDataset,self).__init__(
             train_inputs=train_inputs,train_targets=train_targets,
             valid_inputs=valid_inputs,valid_targets=valid_targets,
             test_inputs=test_inputs,test_targets=test_targets,
