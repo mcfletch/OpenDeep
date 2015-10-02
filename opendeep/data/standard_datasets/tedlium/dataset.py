@@ -1,5 +1,5 @@
 """OpenDeep-specific DataSet API for the TEDLIUM corpus"""
-import os, itertools, logging, math
+import os, logging, math
 from opendeep.data.dataset import Dataset
 from opendeep.utils import file_ops
 from opendeep.data.standard_datasets.tedlium import DEFAULT_TEDLIUM_DATASET_PATH
@@ -21,24 +21,34 @@ def all_segments( speeches ):
         for segment in speech:
             yield segment
 
-def inputs_and_targets( speeches ):
+def inputs_and_targets( speeches, skip_count=1 ):
     """Create input and target iterables from speeches"""
-    return AudioStream(speeches),TranscriptStream(speeches)
+    return AudioStream(
+        speeches, 
+        skip_count=skip_count,
+    ),TranscriptStream(
+        speeches,
+        skip_count=skip_count,
+    )
 
 class AudioStream(object):
-    def __init__(self,speeches):
+    def __init__(self,speeches,skip_count=1):
         self.speeches = speeches
+        self.skip_count = skip_count
     def __iter__(self):
-        for segment in all_segments(self.speeches):
-            for fragment in segment.audio_data.astype('f'):
-                yield fragment
+        for i,segment in enumerate(all_segments(self.speeches)):
+            if not i%self.skip_count:
+                for fragment in segment.audio_data.astype('f'):
+                    yield fragment
 
 class TranscriptStream(object):
-    def __init__(self,speeches):
+    def __init__(self,speeches,skip_count=1):
         self.speeches = speeches
+        self.skip_count = skip_count
     def __iter__(self):
-        for segment in all_segments(self.speeches):
-            yield segment.transcript
+        for i,segment in enumerate(all_segments(self.speeches)):
+            if not i%self.skip_count:
+                yield segment.transcript
 
 
 class TEDLIUMDataset(Dataset):
@@ -47,10 +57,22 @@ class TEDLIUMDataset(Dataset):
         self,
         path=DEFAULT_TEDLIUM_DATASET_PATH,
         window_duration = 0.01,
+        skip_count = 1,
     ):
+        """Initialize the Dataset with a given storage for TEDLIUM
+        
+        path -- target path for the TED LIUM data storage
+        window_duration -- duration of the audio window in seconds
+        skip_count -- step size across the segments in the repo
+                      used to do a very small subset of the dataset 
+                      when doing testing iterations. This allows you
+                      to test an "epoch" across a small subset of the 
+                      40GB data-file
+        """
         self.window_size = 2**int(math.ceil(math.log(int(window_duration * 16000),2)))
+        source_filename = path + '.tar.gz'
         if not os.path.exists(path):
-            if os.path.exists(path+'.tar.gz'):
+            if os.path.exists(source_filename):
                 # Note: this could, in theory overwrite anything on disk, as the Python
                 # tarfile module doesn't prevent writing outside the root directory
                 # (according to its docs).
@@ -82,7 +104,10 @@ class TEDLIUMDataset(Dataset):
                 path, '.*[/]dev[/]sph[/].*[.]sph',
             )
         ]
-        log.info("Creating speech segments (utterance records)")
+        log.info(
+            "Creating speech segments (utterance records using 1/%s of the utterances)",
+            skip_count,
+        )
         train_inputs,train_targets = inputs_and_targets( train_speeches )
         valid_inputs,valid_targets = inputs_and_targets( valid_speeches )
         test_inputs,test_targets = inputs_and_targets( test_speeches )
@@ -99,6 +124,6 @@ def test_minibatch():
     from opendeep.utils.batch import minibatch
     dataset = TEDLIUMDataset()
     inputs = dataset.train_inputs
-    first = iter(minibatch( inputs, batch_size=100 )).next()
+    first = iter(minibatch( inputs, batch_size=128 )).next()
     assert isinstance(first, numpy.ndarray), first
-    assert first.shape == (100,dataset.window_size), first.shape
+    assert first.shape == (128,dataset.window_size), first.shape

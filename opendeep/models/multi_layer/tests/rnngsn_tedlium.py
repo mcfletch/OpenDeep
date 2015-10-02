@@ -23,14 +23,14 @@ from opendeep.log.logger import config_root_logger
 log = logging.getLogger(__name__)
 
 
-def run_midi(dataset):
+def run_tedlium(dataset):
     log.info("Creating RNN-GSN for dataset %s!", dataset)
 
     outdir = "outputs/rnngsn/%s/" % dataset
 
-    # grab the MIDI dataset
+    # grab the TEDLIUM dataset
     if dataset == 'tedlium':
-        dataset = tedlium.TEDLIUMDataset()
+        dataset = tedlium.TEDLIUMDataset(skip_count=128)
     else:
         raise ValueError("dataset %s not recognized." % dataset)
 
@@ -92,7 +92,4 @@ def run_midi(dataset):
 
 if __name__ == '__main__':
     config_root_logger()
-    # run_midi('jsb')
-    # run_midi('piano_de')
-    # run_midi('muse')
-    run_midi('tedlium')
+    run_tedlium('tedlium')
