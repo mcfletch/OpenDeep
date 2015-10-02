@@ -3,11 +3,9 @@ import numpy
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from opendeep.models.multi_layer.rnn_gsn import RNN_GSN
 from opendeep.data.standard_datasets.tedlium import dataset as tedlium
-from opendeep.optimization.stochastic_gradient_descent import SGD
 from opendeep.optimization.adadelta import AdaDelta
 from opendeep.utils.image import tile_raster_images
 from opendeep.utils.misc import closest_to_square_factors
-from opendeep.utils.midi import midiwrite
 from opendeep.monitor.monitor import Monitor
 from opendeep.monitor.plot import Plot
 import PIL.Image as Image
@@ -41,8 +39,8 @@ def run_midi(dataset):
     rnngsn = RNN_GSN(layers=2,
                      walkbacks=4,
                      input_size=dataset.window_size,
-                     hidden_size=150,
-                     rnn_hidden_size=100,
+                     hidden_size=128,
+                     rnn_hidden_size=128,
                      weights_init='gaussian',
                      weights_std=0.01,
                      rnn_weights_init='identity',
@@ -55,7 +53,7 @@ def run_midi(dataset):
     optimizer = AdaDelta(model=rnngsn,
                          dataset=dataset,
                          epochs=200,
-                         batch_size=100,
+                         batch_size=128,
                          min_batch_size=2,
                          # learning_rate=1e-4,
                          learning_rate=1e-6,
@@ -64,26 +62,15 @@ def run_midi(dataset):
 
     ll = Monitor('crossentropy', rnngsn.get_monitors()['noisy_recon_cost'],test=True)
     mse = Monitor('frame-error', rnngsn.get_monitors()['mse'],train=True,test=True,valid=True)
-    plot = Plot(bokeh_doc_name='rnngsn_midi_%s'%dataset, monitor_channels=[ll,mse],open_browser=True)
+    plot = Plot(
+        bokeh_doc_name='rnngsn_tedlium_%s'%dataset, monitor_channels=[ll,mse],open_browser=True
+    )
 
     # perform training!
     optimizer.train(plot=plot)
+    
     # use the generate function!
     generated, _ = rnngsn.generate(initial=None, n_steps=200)
-
-    dt = 0.3
-    r = (21, 109)
-    midiwrite(outdir + 'rnngsn_generated_midi.mid', generated, r=r, dt=dt)
-
-    if has_pylab:
-        extent = (0, dt * len(generated)) + r
-        pylab.figure()
-        pylab.imshow(generated.T, origin='lower', aspect='auto',
-                     interpolation='nearest', cmap=pylab.cm.gray_r,
-                     extent=extent)
-        pylab.xlabel('time (s)')
-        pylab.ylabel('MIDI note number')
-        pylab.title('generated piano-roll')
 
     # Construct image from the weight matrix
     image = Image.fromarray(
@@ -94,10 +81,9 @@ def run_midi(dataset):
             tile_spacing=(1, 1)
         )
     )
-    image.save(outdir + 'rnngsn_midi_weights.png')
+    image.save(outdir + 'rnngsn_tedlium_weights.png')
 
     log.debug("done!")
-    del midi
     del rnngsn
     del optimizer
 
