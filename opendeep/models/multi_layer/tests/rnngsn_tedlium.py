@@ -55,7 +55,6 @@ def run_tedlium(dataset):
                          epochs=200,
                          batch_size=128,
                          min_batch_size=2,
-                         # learning_rate=1e-4,
                          learning_rate=1e-6,
                          save_freq=1,
                          stop_patience=100)

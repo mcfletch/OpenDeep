@@ -81,7 +81,7 @@ class TEDLIUMDataset(Dataset):
             raise RuntimeError(
                 "You need to download the TEDLIUM corpus (v2) from %(url)s and save it to %(path)s"%{
                     'url': LIUM_BASE + TEDLIUM_DOWNLOAD_URL,
-                    'path': path+'.tar.gz',
+                    'path': source_filename,
                 }
             )
         path = os.path.realpath(path)
