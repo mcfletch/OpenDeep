@@ -78,7 +78,6 @@ class Speech( object ):
 def random_walk( directory=DEFAULT_TEDLIUM_DATASET_PATH ):
     """Do a random walk of directory loading fragments of speeches"""
     import os
-    count = 0
     filenames = []
     log.info('Doing random walk of %s',directory)
     for path,dirs,files in os.walk(directory):
