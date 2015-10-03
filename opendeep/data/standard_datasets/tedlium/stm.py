@@ -23,13 +23,16 @@ class STMParser( object ):
     """
     def __init__(self, iterable ):
         self.iterable = iterable
+        self.segments = list(self.parse())
+    def __iter__(self):
+        return iter(self.segments)
     IGNORE_SPEAKERS = set([
         'inter_segment_gap',
     ])
     IGNORE_TRANSCRIPT = set([
         'ignore_time_segment_in_scoring',
     ])
-    def __iter__(self):
+    def parse(self):
         """Iteratively parse every line of the source iterable"""
         for i,line in enumerate(self.iterable):
             try:

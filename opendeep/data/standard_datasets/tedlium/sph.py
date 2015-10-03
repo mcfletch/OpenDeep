@@ -32,6 +32,13 @@ class SPHFile( object ):
         if self._byte_array is None:
             self._byte_array = numpy.memmap( self.filename, dtype=numpy.uint8, mode='r')
         return self._byte_array
+    def close(self):
+        if self._byte_array is not None:
+            if hasattr( self._byte_array, '_mmap' ):
+                self._byte_array._mmap.close()
+            elif hasattr( self._byte_array, 'close' ):
+                self._byte_array.close()
+            del self._byte_array
     @property
     def audio_array(self):
         """Get our audio array in its appropriate format, with the header stripped"""

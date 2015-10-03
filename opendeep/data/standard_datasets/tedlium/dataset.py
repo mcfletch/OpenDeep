@@ -1,4 +1,5 @@
 """OpenDeep-specific DataSet API for the TEDLIUM corpus"""
+from __future__ import print_function
 import os, logging, math
 from opendeep.data.dataset import Dataset
 from opendeep.utils import file_ops
@@ -36,10 +37,15 @@ class AudioStream(object):
         self.speeches = speeches
         self.skip_count = skip_count
     def __iter__(self):
+        last = None
         for i,segment in enumerate(all_segments(self.speeches)):
             if not i%self.skip_count:
                 for fragment in segment.audio_data.astype('f'):
                     yield fragment
+            if last and segment.speech != last:
+                log.info("Finished: %s", segment.speech.stm_file)
+                last.sph_file.close()
+            last = segment.speech
 
 class TranscriptStream(object):
     def __init__(self,speeches,skip_count=1):
@@ -127,3 +133,16 @@ def test_minibatch():
     first = iter(minibatch( inputs, batch_size=128 )).next()
     assert isinstance(first, numpy.ndarray), first
     assert first.shape == (128,dataset.window_size), first.shape
+
+def test_all_audio():
+    """Test that we can iterate without having too many open files"""
+    dataset = TEDLIUMDataset()
+    for i,audio in enumerate(dataset.train_inputs):
+        if not i%10000:
+            print(i)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    test_all_audio()
+    

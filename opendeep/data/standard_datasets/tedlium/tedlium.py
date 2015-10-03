@@ -32,8 +32,10 @@ class Speech( object ):
             )
         self.stm_file = stm_file
     def __iter__(self):
-        self.stm = stm.STMParser( open(self.stm_file,'rb') )
-        for segment in self.stm:
+        with open(self.stm_file,'rb') as fh:
+            self.stm = stm.STMParser( fh )
+            segments = list(self.stm)
+        for segment in segments:
             segment.speech = self
             segment.audio_data = self.sph_file.audio_segment( segment.start, segment.stop )
             yield segment

@@ -30,7 +30,7 @@ def run_tedlium(dataset):
 
     # grab the TEDLIUM dataset
     if dataset == 'tedlium':
-        dataset = tedlium.TEDLIUMDataset(skip_count=128)
+        dataset = tedlium.TEDLIUMDataset(skip_count=4096)
     else:
         raise ValueError("dataset %s not recognized." % dataset)
 
