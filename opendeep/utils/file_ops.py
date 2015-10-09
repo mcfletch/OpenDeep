@@ -171,6 +171,17 @@ def init_empty_file(filename):
     with open(filename, 'w') as f:
         f.write("")
 
+def human_bytes( bytes ):
+    for limit,suffix in [
+        (1024*1024*1024,'GB'),
+        (1024*1024, "MB"),
+        (1024,'KB'), 
+        (1,'B'),
+    ]:
+        if bytes > limit:
+            return '%0.1f%s'%(bytes/float(limit),suffix)
+    return '%sB'%(bytes,)
+
 def download_file(url, destination):
     """
     This will download whatever is on the internet at 'url' and save it to 'destination'.
@@ -194,7 +205,15 @@ def download_file(url, destination):
         if page.getcode() is not 200:
             log.warning('Tried to download data from %s and got http response code %s', url, str(page.getcode()))
             return False
-        urlretrieve(url, destination)
+        def report_hook( block, block_size, total_bytes ):
+            if not block % 512:
+                current = block * block_size 
+                log.info( 
+                    '%s %0.1f%%', 
+                    human_bytes(current), 
+                    float(current)/(total_bytes or 1)
+                )
+        urlretrieve(url, destination,report_hook)
         return True
     except:
         log.exception('Error downloading data from %s to %s', url, destination)

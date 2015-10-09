@@ -6,5 +6,5 @@ as it requires a registration step. It is *also* a
 slow connections.
 """
 import os
-DEFAULT_DATASET_PATH = os.path.expanduser('~/.config/opendeep/datasets')
+from .. import DEFAULT_DATASET_PATH
 DEFAULT_TEDLIUM_DATASET_PATH = os.path.join(DEFAULT_DATASET_PATH,'TEDLIUM_release2')
