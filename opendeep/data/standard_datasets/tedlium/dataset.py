@@ -64,6 +64,7 @@ class TEDLIUMDataset(Dataset):
         path=DEFAULT_TEDLIUM_DATASET_PATH,
         window_duration = 0.01,
         skip_count = 1,
+        max_speeches = None,
     ):
         """Initialize the Dataset with a given storage for TEDLIUM
         
@@ -92,31 +93,37 @@ class TEDLIUMDataset(Dataset):
             )
         path = os.path.realpath(path)
         log.info("Searching for speeches")
-        self.train_speeches = train_speeches = [
+        self.train_speeches = [
             tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]train[/]sph[/].*[.]sph',
             )
         ]
-        self.test_speeches = test_speeches = [
+        if max_speeches:
+            self.train_speeches = self.train_speeches[:max_speeches]
+        self.test_speeches = [
             tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]test[/]sph[/].*[.]sph',
             )
         ]
-        self.valid_speeches = valid_speeches = [
+        if max_speeches:
+            self.test_speeches = self.test_speeches[:max_speeches]
+        self.valid_speeches = [
             tedlium.Speech( sph, window_size=self.window_size )
             for sph in file_ops.find_files(
                 path, '.*[/]dev[/]sph[/].*[.]sph',
             )
         ]
+        if max_speeches:
+            self.valid_speeches = self.valid_speeches[:max_speeches]
         log.info(
             "Creating speech segments (utterance records using 1/%s of the utterances)",
             skip_count,
         )
-        train_inputs,train_targets = inputs_and_targets( train_speeches )
-        valid_inputs,valid_targets = inputs_and_targets( valid_speeches )
-        test_inputs,test_targets = inputs_and_targets( test_speeches )
+        train_inputs,train_targets = inputs_and_targets( self.train_speeches )
+        valid_inputs,valid_targets = inputs_and_targets( self.valid_speeches )
+        test_inputs,test_targets = inputs_and_targets( self.test_speeches )
         log.info("Initializing the OpenDeep dataset")
         super(TEDLIUMDataset,self).__init__(
             train_inputs=train_inputs,train_targets=train_targets,
