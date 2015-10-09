@@ -31,7 +31,7 @@ try:
     from urllib.request import urlopen, urlretrieve, FancyURLopener
 except ImportError:
     # Fall back to Python 2's urllib2
-    from urllib import urlopen, urlretrieve, FancyURLopener
+    from urllib import FancyURLopener
 import zipfile
 import tarfile
 import logging
