@@ -31,6 +31,7 @@ class LSTM(Model):
     """
     def __init__(self, inputs_hook=None, hiddens_hook=None, params_hook=None, outdir='outputs/lstm/',
                  input_size=None, hidden_size=None, output_size=None,
+                 layers=1,
                  activation='sigmoid', hidden_activation='relu', inner_hidden_activation='sigmoid',
                  mrg=RNG_MRG.MRG_RandomStreams(1),
                  weights_init='uniform', weights_interval='montreal', weights_mean=0, weights_std=5e-3,
@@ -66,6 +67,8 @@ class LSTM(Model):
             The size (dimensionality) of the hidden layers. If shape is provided in `hiddens_hook`, this is optional.
         output_size : int
             The size (dimensionality) of the output.
+        layers : int
+            The number of layers of hidden (recurrent) units to stack.
         activation : str or callable
             The nonlinear (or linear) activation to perform after the dot product from hiddens -> output layer.
             This activation function should be appropriate for the output unit types, i.e. 'sigmoid' for binary.
@@ -239,6 +242,8 @@ class LSTM(Model):
                  W_h_y, b_c, b_i, b_f, b_o,
                  b_y) = self.params_hook
                 recurrent_params = [U_h_c, U_h_i, U_h_f, U_h_o]
+                U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = None, None, None, None
+
             else:
                 (W_x_c, W_x_i, W_x_f, W_x_o,
                  U_h_c, U_h_i, U_h_f, U_h_o,
@@ -298,24 +303,26 @@ class LSTM(Model):
                 clip = abs(clip_recurrent_grads)
                 U_h_c, U_h_i, U_h_f, U_h_o = [theano.gradient.grad_clip(p, -clip, clip) for p in recurrent_params]
             # bidirectional params
-                if bidirectional:
-                    # all hidden-to-hidden weights
-                    U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = [
-                        get_weights(weights_init=r_weights_init,
-                                    shape=(self.hidden_size, self.hidden_size),
-                                    name="U_h_%s_b" % sub,
-                                    # if gaussian
-                                    mean=r_weights_mean,
-                                    std=r_weights_std,
-                                    # if uniform
-                                    interval=r_weights_interval)
-                        for sub in ['c', 'i', 'f', 'o']
-                    ]
-                    recurrent_params += [U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b]
-                    if clip_recurrent_grads:
-                        clip = abs(clip_recurrent_grads)
-                        U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = [theano.gradient.grad_clip(p, -clip, clip) for p in
-                                                              [U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b]]
+            if bidirectional:
+                # all hidden-to-hidden weights
+                U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = [
+                    get_weights(weights_init=r_weights_init,
+                                shape=(self.hidden_size, self.hidden_size),
+                                name="U_h_%s_b" % sub,
+                                # if gaussian
+                                mean=r_weights_mean,
+                                std=r_weights_std,
+                                # if uniform
+                                interval=r_weights_interval)
+                    for sub in ['c', 'i', 'f', 'o']
+                ]
+                recurrent_params += [U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b]
+                if clip_recurrent_grads:
+                    clip = abs(clip_recurrent_grads)
+                    U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = [theano.gradient.grad_clip(p, -clip, clip) for p in
+                                                          [U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b]]
+            else:
+                U_h_c_b, U_h_i_b, U_h_f_b, U_h_o_b = None, None, None, None
 
         # put all the parameters into our list, and make sure it is in the same order as when we try to load
         # them from a params_hook!!!
@@ -439,14 +446,11 @@ class LSTM(Model):
         else:
             return super(LSTM, self).get_decay_params()
 
-    def get_noise_switch(self):
+    def get_switches(self):
         if hasattr(self, 'noise_switch'):
             return [self.noise_switch]
         else:
-            return super(LSTM, self).get_noise_switch()
+            return super(LSTM, self).get_switches()
 
     def get_params(self):
         return self.params
-
-    def save_args(self, args_file="lstm_config.pkl"):
-        super(LSTM, self).save_args(args_file)

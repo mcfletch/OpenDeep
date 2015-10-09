@@ -181,7 +181,7 @@ class Dense(Model):
     def get_train_cost(self):
         return self.cost
 
-    def get_noise_switch(self):
+    def get_switches(self):
         if hasattr(self, 'switch'):
             return self.switch
         else:
@@ -189,9 +189,6 @@ class Dense(Model):
 
     def get_params(self):
         return self.params
-
-    def save_args(self, args_file="basiclayer_config.pkl"):
-        super(Dense, self).save_args(args_file)
 
 
 @inherit_docs
@@ -318,6 +315,3 @@ class SoftmaxLayer(Dense):
         """
         # return the argmax y_pred class
         return self.y_pred
-
-    def save_args(self, args_file="softmax_config.pkl"):
-        super(SoftmaxLayer, self).save_args(args_file)

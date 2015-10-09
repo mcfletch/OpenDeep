@@ -37,8 +37,9 @@ from opendeep.models.model import Model
 from opendeep.monitor.monitor import collapse_channels
 from opendeep.monitor.out_service import FileService
 from opendeep.utils.decay import get_decay_function
-from opendeep.utils.misc import raise_to_list, make_time_units_string, \
-    get_shared_values, set_shared_values, add_kwargs_to_dict, trunc
+from opendeep.utils.misc import (raise_to_list, make_time_units_string,
+                                 get_shared_values, set_shared_values,
+                                 add_kwargs_to_dict, trunc)
 from opendeep.utils.batch import minibatch
 from opendeep.utils.misc import min_normalized_izip
 
@@ -94,7 +95,7 @@ class Optimizer(object):
         """
         log.info("Initializing optimizer %s", str(type(self)))
 
-        # Deal with early stopping None initializations.
+        # Deal with early stopping None initializations (no early stopping).
         if not stop_threshold:
             stop_threshold = numpy.inf
         if not save_freq:
@@ -172,7 +173,7 @@ class Optimizer(object):
             self.learning_rate_decay = False
 
         # rest of initial parameters needed for training.
-        self.noise_switches = raise_to_list(self.model.get_noise_switch())
+        self.noise_switches = raise_to_list(self.model.get_switches())
         self.batch_size = batch_size
         self.min_batch_size = min_batch_size
         self.n_epoch = epochs
@@ -397,7 +398,7 @@ class Optimizer(object):
                 log.debug("Restoring best model parameters...")
                 set_shared_values(self.params, self.best_params)
             log.debug("Saving model parameters...")
-            self.model.save_params('trained_epoch_' + str(self.epoch_counter) + '.pkl')
+            self.model.save_params('trained_epoch_' + str(self.epoch_counter))
 
             log.info("------------TRAIN TIME TOOK %s---------", make_time_units_string(time.time() - t))
 
@@ -514,7 +515,7 @@ class Optimizer(object):
 
         if (self.epoch_counter % self.save_frequency) == 0:
             #save params
-            self.model.save_params('trained_epoch_' + str(self.epoch_counter) + '.pkl')
+            self.model.save_params('trained_epoch_' + str(self.epoch_counter))
 
         # ANNEAL!
         if not stop:

@@ -1,7 +1,7 @@
 """
 This module defines a container for quickly assembling multiple layers/models
-together without needing to define a new Model class. This should mainly be used
-for experimentation, and then later you should make your creation into a new Model class.
+together without needing to define a new :class:`Model` class. This should mainly be used
+for experimentation, and then later you should make your creation into a new :class:`Model` class.
 """
 # standard libraries
 import logging
@@ -18,17 +18,20 @@ log = logging.getLogger(__name__)
 
 class Prototype(Model):
     """
-    The Prototype lets you add Models in sequence, where the first model takes your input
+    The :class:`Prototype` lets you add :class:`Model`s in sequence, where the first model takes your input
     and the last model gives your output.
 
-    You can use an :class:`Optimizer` with the container as you would a Model - makes training easy :)
+    The :class:`Prototype` is an iterable class, so you can index specific models inside or iterate over them
+    with a for loop.
+
+    You can use an :class:`Optimizer` with the container as you would a :class:`Model` - makes training easy :)
 
     Attributes
     ----------
     models : list
         The list of :class:`Model` objects that make up the :class:`Prototype`.
     """
-    def __init__(self, config=None, layers=None, outdir='outputs/prototype/'):
+    def __init__(self, layers=None, config=None, outdir='outputs/prototype/'):
         """
         During initialization, use the optional config provided to pre-set up the models. This is used
         for repeatable experiments.
@@ -37,15 +40,15 @@ class Prototype(Model):
 
         Parameters
         ----------
+        layers : list(:class:`Model`), optional
+            A model or list of models to initialize the :class:`Prototype` with.
         config : dict or JSON/YAML filename, optional
             A configuration defining the multiple models/configurations for this container to have.
-        layers : list(:class:`Model`)
-            A model or list of models to initialize the :class:`Prototype` with.
-        outdir : str
+        outdir : str, optional
             The location to produce outputs from training or running the :class:`Prototype`.
         """
         # initialize superclass (model) with the config
-        super(Prototype, self).__init__(config=config, outdir=outdir)
+        super(Prototype, self).__init__(config=config, outdir=outdir, layers=layers)
 
         # TODO: add ability to create the models list from the input config.
 
@@ -68,10 +71,10 @@ class Prototype(Model):
 
     def add(self, model):
         """
-        This adds a model (or list of models) to the sequence that the :class:`Prototype` holds.
+        This adds a :class:`Model` (or list of models) to the sequence that the :class:`Prototype` holds.
 
         By default, we want single models added sequentially to use the outputs of the previous model as its
-        `inputs_hook` (if no `inputs_hook` was defined by the user).
+        `inputs` (if no `inputs` was defined by the user).
 
         Examples
         --------
@@ -191,10 +194,10 @@ class Prototype(Model):
         """
         # set the noise switches off for running! we assume unseen data is noisy anyway :)
         old_switch_vals = []
-        if len(self.get_noise_switch()) > 0:
-            log.debug("Turning off %s noise switches, resetting them after run!", str(len(self.get_noise_switch())))
-            old_switch_vals = [switch.get_value() for switch in self.get_noise_switch()]
-            [switch.set_value(0.) for switch in self.get_noise_switch()]
+        if len(self.get_switches()) > 0:
+            log.debug("Turning off %s noise switches, resetting them after run!", str(len(self.get_switches())))
+            old_switch_vals = [switch.get_value() for switch in self.get_switches()]
+            [switch.set_value(0.) for switch in self.get_switches()]
 
         # make sure the input is raised to a list - we are going to splat it!
         input = raise_to_list(input)
@@ -215,8 +218,8 @@ class Prototype(Model):
             output = self.f_run(*input)
 
         # reset any switches to how they were!
-        if len(self.get_noise_switch()) > 0:
-            [switch.set_value(val) for switch, val in zip(self.get_noise_switch(), old_switch_vals)]
+        if len(self.get_switches()) > 0:
+            [switch.set_value(val) for switch, val in zip(self.get_switches(), old_switch_vals)]
 
         return output
 
@@ -350,7 +353,7 @@ class Prototype(Model):
             lr_scalers.update(model.get_lr_scalers())
         return lr_scalers
 
-    def get_noise_switch(self):
+    def get_switches(self):
         """
         This method returns a list of shared theano variables representing switches for adding noise in the model.
 
@@ -364,7 +367,7 @@ class Prototype(Model):
         # Return the noise switches going through each model in the list
         noise_switches = []
         for model in self.models:
-            noise_switches.extend(raise_to_list(model.get_noise_switch()))
+            noise_switches.extend(raise_to_list(model.get_switches()))
         return noise_switches
 
     def get_params(self):
@@ -389,3 +392,19 @@ class Prototype(Model):
                 if param not in params:
                     params.append(param)
         return params
+
+
+class Repeating(Model):
+    """
+    The `Repeating` container takes a `Model` instance and repeats it across the first dimension of the input.
+    """
+    def __init__(self, model):
+        # make sure the input model to repeat is a Model instance
+        assert isinstance(model, Model), "The initial model provided was type %s, not a Model." % str(type(model))
+        self.model = model
+        # make this input one dimension more than the provided Model's input (since we are repeating over the
+        # first dimension)
+        model_input = raise_to_list(self.model.get_inputs())[0]
+        self.input = T.TensorType(model_input.dtype, (False,)*(model_input.ndim + 1))
+
+
