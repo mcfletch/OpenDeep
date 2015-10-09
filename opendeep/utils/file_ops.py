@@ -28,10 +28,10 @@ import errno
 from collections import Iterable
 try:
     # For Python 3.0 and later
-    from urllib.request import urlopen, urlretrieve
+    from urllib.request import urlopen, urlretrieve, FancyURLopener
 except ImportError:
     # Fall back to Python 2's urllib2
-    from urllib import urlopen, urlretrieve
+    from urllib import urlopen, urlretrieve, FancyURLopener
 import zipfile
 import tarfile
 import logging
@@ -171,6 +171,13 @@ def init_empty_file(filename):
     with open(filename, 'w') as f:
         f.write("")
 
+class ResumableDownload( FancyURLopener ):
+    """A download operation that can be resumed"""
+    range_capable = False
+    def http_error_206(self, *args ):
+        """Ignore a 206 response as "downloading partial" is the intent"""
+        self.range_capable = True
+
 def human_bytes( bytes ):
     for limit,suffix in [
         (1024*1024*1024,'GB'),
@@ -178,7 +185,7 @@ def human_bytes( bytes ):
         (1024,'KB'), 
         (1,'B'),
     ]:
-        if bytes > limit:
+        if bytes >= limit:
             return '%0.1f%s'%(bytes/float(limit),suffix)
     return '%sB'%(bytes,)
 
@@ -200,24 +207,44 @@ def download_file(url, destination):
     """
     destination = os.path.realpath(destination)
     log.debug('Downloading data from %s to %s', url, destination)
-    try:
-        page = urlopen(url)
-        if page.getcode() is not 200:
-            log.warning('Tried to download data from %s and got http response code %s', url, str(page.getcode()))
-            return False
-        def report_hook( block, block_size, total_bytes ):
-            if not block % 512:
-                current = block * block_size 
-                log.info( 
-                    '%s %0.1f%%', 
-                    human_bytes(current), 
-                    float(current)/(total_bytes or 1)
-                )
-        urlretrieve(url, destination,report_hook)
-        return True
-    except:
-        log.exception('Error downloading data from %s to %s', url, destination)
+    opener = ResumableDownload( )
+    if os.path.exists( destination ):
+        current = os.stat(destination).st_size
+        opener.addheader( "Range", "bytes=%s-"%(current))
+        log.info( 'Resuming download from: %s', human_bytes(current) )
+    else:
+        log.debug('Starting download')
+    page = opener.open( url )
+    if page.getcode() not in (200,206):
+        # TODO: errors shouldn't pass silently, but the original code 
+        # just returns False on failures...
+        log.error( "Unable to download URL %s, HTTP code %s",url,page.getcode())
         return False
+    total_bytes = int(page.headers.get('Content-Length',0))
+    if page.getcode() == 200:
+        log.info("New download: %s", total_bytes)
+        fh = open( destination, 'wb')
+    else:
+        log.info("Resuming download remaining: %s", human_bytes(total_bytes))
+        fh = open( destination, 'ab')
+    block = 1024*1024
+    current = 0
+    try:
+        with fh:
+            while True:
+                new = page.read( block )
+                if not new:
+                    break
+                fh.write( new )
+                current += len(new)
+                log.info( 
+                    '%s %0.2f%%', 
+                    human_bytes(current), 
+                    (100*float(current))/(total_bytes or 1)
+                )
+    finally:
+        page.close()
+    return True
 
 def get_file_type(file_path):
     """
