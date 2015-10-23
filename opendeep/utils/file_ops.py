@@ -346,7 +346,7 @@ def unzip(source_filename, destination_dir='.'):
         log.exception('Error unzipping data from %s to %s', source_filename, destination_dir)
         return False
 
-def untar(source_filename, destination_dir='.'):
+def untar(source_filename, destination_dir='.', mode='r'):
     """
     This will unzip a tarball (.tar.gz) to a destination directory.
 
@@ -366,7 +366,7 @@ def untar(source_filename, destination_dir='.'):
     destination_dir = os.path.realpath(destination_dir)
     log.debug('Unzipping tarball data from %s to %s', source_filename, destination_dir)
     try:
-        with tarfile.open(source_filename) as tar:
+        with tarfile.open(source_filename,mode=mode) as tar:
             tar.extractall(destination_dir)
             return True
     except:
