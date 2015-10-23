@@ -155,9 +155,9 @@ class Model(object):
         if key != 'args':
             try:
                 return self.args[key]
-            except IndexError:
+            except KeyError:
                 pass 
-        raise AttributeError( key )
+        raise AttributeError( key, self.__class__ )
 
     ######################################################################
     # Methods for the symbolic inputs, hiddens, and outputs of the model #
