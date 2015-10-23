@@ -32,14 +32,19 @@ def run_audio(dataset):
     # grab the dataset
     if dataset == 'tedlium':
         dataset = tedlium.TEDLIUMDataset(max_speeches=3)
+        extra_args = {
+        }
     elif dataset == 'codegolf':
         dataset = codegolf.CodeGolfDataset()
+        extra_args = {
+        }
     else:
         raise ValueError("dataset %s not recognized." % dataset)
 
     rng = numpy.random.RandomState(1234)
     mrg = RandomStreams(rng.randint(2 ** 30))
     assert dataset.window_size == 256, dataset.window_size
+    
     rnngsn = RNN_GSN(layers=2,
                      walkbacks=4,
                      input_size=dataset.window_size,
@@ -53,7 +58,7 @@ def run_audio(dataset):
                      rnn_hidden_activation='relu',
                      rnn_weights_std=0.0001,
                      mrg=mrg,
-                     outdir=outdir)
+                     outdir=outdir, **extra_args)
 
     # make an optimizer to train it
     optimizer = AdaDelta(model=rnngsn,

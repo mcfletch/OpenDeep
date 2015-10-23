@@ -178,6 +178,7 @@ class GSN(Model):
         initial_parameters = locals().copy()
         initial_parameters.pop('self')
         super(GSN, self).__init__(**initial_parameters)
+        self.input_size = input_size
 
         # when the input should be thought of as an image, either use the specified width and height,
         # or try to make as square as possible.
@@ -723,6 +724,8 @@ class GSN(Model):
         list
             List of theano variables that make the hidden representation (including the even layers initialized to 0).
         '''
+        assert hiddens_tensor.shape[0], hiddens_tensor
+        assert self.input_size
         h_list = [T.zeros(shape=(hiddens_tensor.shape[0], self.input_size), dtype=theano.config.floatX)]
         for idx in range(self.layers):
             # we only care about the odd layers

@@ -180,6 +180,7 @@ class RNN_GSN(Model):
         ##################
         # specifications #
         ##################
+        self.input_size = input_size
         self.layers = layers
         self.walkbacks = walkbacks
         self.input_sampling = input_sampling
@@ -377,6 +378,7 @@ class RNN_GSN(Model):
 
         gsn = GSN(
             inputs_hook        = (self.input_size, self.input),
+            input_size         = self.input_size,
             hiddens_hook       = (self.hidden_size, GSN.pack_hiddens(h_list)),
             params_hook        = self.gsn_params,
             outdir             = os.path.join(self.outdir, 'gsn_noisy/'),
@@ -446,8 +448,10 @@ class RNN_GSN(Model):
         if generate:
             h_list_generate = [T.shape_padleft(h) for h in h_list]
             # create a GSN to generate x_t
+            assert self.input_size, self
             gsn = GSN(
                 inputs_hook        = (self.input_size, self.input),
+                input_size         = self.input_size,
                 hiddens_hook       = (self.hidden_size, T.concatenate(h_list_generate, axis=1)),
                 params_hook        = self.gsn_params,
                 outdir             = os.path.join(self.outdir, 'gsn_generate/'),
