@@ -159,6 +159,14 @@ class Model(object):
 
         # Don't know the position of switches!
         self.switches_on = None
+        
+    def __getattr__(self, key ):
+        if key != 'args':
+            try:
+                return self.args[key]
+            except IndexError:
+                pass 
+        raise AttributeError( key )
 
     ######################################################################
     # Methods for the symbolic inputs, hiddens, and outputs of the model #

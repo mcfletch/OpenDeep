@@ -3,6 +3,7 @@ import numpy
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from opendeep.models.multi_layer.rnn_gsn import RNN_GSN
 from opendeep.data.standard_datasets.tedlium import dataset as tedlium
+from opendeep.data.standard_datasets.codegolfyesno import dataset as codegolf
 from opendeep.optimization.adadelta import AdaDelta
 from opendeep.utils.image import tile_raster_images
 from opendeep.utils.misc import closest_to_square_factors
@@ -23,22 +24,27 @@ from opendeep.log.logger import config_root_logger
 log = logging.getLogger(__name__)
 
 
-def run_tedlium(dataset):
+def run_audio(dataset):
     log.info("Creating RNN-GSN for dataset %s!", dataset)
 
     outdir = "outputs/rnngsn/%s/" % dataset
 
-    # grab the TEDLIUM dataset
+    # grab the dataset
     if dataset == 'tedlium':
         dataset = tedlium.TEDLIUMDataset(max_speeches=3)
+    elif dataset == 'codegolf':
+        dataset = codegolf.CodeGolfDataset()
     else:
         raise ValueError("dataset %s not recognized." % dataset)
 
     rng = numpy.random.RandomState(1234)
     mrg = RandomStreams(rng.randint(2 ** 30))
+    assert dataset.window_size == 256, dataset.window_size
     rnngsn = RNN_GSN(layers=2,
                      walkbacks=4,
                      input_size=dataset.window_size,
+                     image_height = 1,
+                     image_width = 256,
                      hidden_size=128,
                      rnn_hidden_size=128,
                      weights_init='gaussian',
@@ -80,7 +86,7 @@ def run_tedlium(dataset):
             tile_spacing=(1, 1)
         )
     )
-    image.save(outdir + 'rnngsn_tedlium_weights.png')
+    image.save(outdir + 'rnngsn_%s_weights.png'%(dataset,))
 
     log.debug("done!")
     del rnngsn
@@ -91,4 +97,9 @@ def run_tedlium(dataset):
 
 if __name__ == '__main__':
     config_root_logger()
-    run_tedlium('tedlium')
+    import sys
+    if not sys.argv[1:]:
+        dataset = 'tedlium'
+    else:
+        dataset = sys.argv[1]
+    run_audio(dataset)

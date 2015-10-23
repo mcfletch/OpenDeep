@@ -93,17 +93,18 @@ def read_wave( filename ):
         return numpy.fromstring( binary, '<H' )
 
 class AudioSet( object ):
-    def __init__(self, numbers, directory ):
+    def __init__(self, numbers, directory, window_size=256 ):
         self.numbers = numbers 
         self.directory = directory
+    def friendly_data(self,data):
+        data = data[:-(len(data)%self.window_size)]
+        return data.reshape((-1,self.window_size))
     def __iter__(self):
         yes_template = os.path.join( self.directory, 'yes%s.wav' )
         no_template = os.path.join( self.directory, 'no%s.wav' )
         for number in self.numbers:
-            data = read_wave( yes_template%number )
-            yield data
-            data = read_wave( no_template%number )
-            yield data
+            yield self.friendly_data( read_wave( yes_template%number ) )
+            yield self.friendly_data( read_wave( no_template%number ) )
 
 class TargetSet( object ):
     def __init__(self,numbers):
@@ -140,13 +141,13 @@ class CodeGolfDataset(Dataset):
         test = numbers[-int(400*test_fraction):]
         numbers = numbers[:-len(test)]
         
-        train_inputs = AudioSet( numbers, path )
+        train_inputs = AudioSet( numbers, path, self.window_size )
         train_targets = TargetSet( numbers )
         
-        valid_inputs = AudioSet( valid, path )
+        valid_inputs = AudioSet( valid, path, self.window_size )
         valid_targets = TargetSet( valid )
         
-        test_inputs = AudioSet( test, path )
+        test_inputs = AudioSet( test, path, self.window_size )
         test_targets = TargetSet( test )
         
         log.info("Initializing the OpenDeep dataset %s train %s valid %s test",len(numbers),len(valid),len(test))
