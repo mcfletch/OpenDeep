@@ -14,7 +14,7 @@ try:
     has_pylab = True
 except ImportError:
     print("pylab isn't available.")
-    print("It can be installed with 'pip install -q Pillow'")
+    print("It can be installed with 'pip install -q pylab'")
     has_pylab = False
 
 import logging
