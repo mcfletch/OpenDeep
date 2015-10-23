@@ -18,7 +18,7 @@ from theano.compat.python2x import OrderedDict
 from opendeep.utils.constructors import function
 from opendeep.models.model import Model
 from opendeep.models.single_layer.convolutional import ConvPoolLayer
-from opendeep.models.single_layer.basic import Dense, Softmax as SoftmaxLayer
+from opendeep.models.single_layer.basic import Dense, SoftmaxLayer
 from opendeep.utils.decorators import inherit_docs
 from opendeep.utils.nnet import mirror_images
 from opendeep.utils.misc import make_time_units_string, raise_to_list

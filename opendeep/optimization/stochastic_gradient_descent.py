@@ -18,7 +18,7 @@ class SGD(Optimizer):
     """
     Stochastic gradient descent for training a model - includes learning rate decay and momentum.
     """
-    def __init__(self, dataset, loss, model=None,
+    def __init__(self, dataset, model=None,
                  epochs=10, batch_size=100, min_batch_size=1,
                  save_freq=None, stop_threshold=None, stop_patience=None,
                  learning_rate=.1, lr_decay="exponential", lr_decay_factor=.995,
@@ -30,12 +30,9 @@ class SGD(Optimizer):
         Parameters
         ----------
         dataset : Dataset
-            The :class:`opendeep.data.Dataset` to use when training the Model.
-        loss : Loss
-            The :class:`opendeep.optimization.loss.Loss` function to compare the model to a 'target' result.
+            The Dataset to use when training the Model.
         model : Model
-            The :class:`opendeep.models.Model` to train. Needed if the Optimizer isn't being passed to a
-            Model's .train() method.
+            The Model to train. Needed if the Optimizer isn't being passed to a Model's .train() method.
         epochs : int
             how many training iterations over the dataset to go.
         batch_size : int

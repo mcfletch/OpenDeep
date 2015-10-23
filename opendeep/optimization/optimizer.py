@@ -34,7 +34,6 @@ from theano.compat import six
 from opendeep.utils.constructors import sharedX, function
 from opendeep.data.dataset import Dataset
 from opendeep.models.model import Model
-from opendeep.optimization.loss import Loss
 from opendeep.monitor.monitor import collapse_channels
 from opendeep.monitor.out_service import FileService
 from opendeep.utils.decay import get_decay_function
@@ -55,7 +54,7 @@ class Optimizer(object):
     training a model on a dataset using an online stochastic process. The base framework for performing
     stochastic gradient descent.
     """
-    def __init__(self, dataset, loss, model=None,
+    def __init__(self, dataset, model=None,
                  epochs=1000, batch_size=100, min_batch_size=1,
                  save_freq=10, stop_threshold=None, stop_patience=50,
                  learning_rate=1e-3, lr_decay=None, lr_decay_factor=None,
@@ -67,12 +66,9 @@ class Optimizer(object):
         Parameters
         ----------
         dataset : Dataset
-            The :class:`opendeep.data.Dataset` to use when training the Model.
-        loss : Loss
-            The :class:`opendeep.optimization.loss.Loss` function to compare the model to a 'target' result.
+            The Dataset to use when training the Model.
         model : Model
-            The :class:`opendeep.models.Model` to train. Needed if the Optimizer isn't being passed to a
-            Model's .train() method.
+            The Model to train. Needed if the Optimizer isn't being passed to a Model's .train() method.
         epochs : int
             How many training iterations over the dataset to go.
         batch_size : int
@@ -127,18 +123,9 @@ class Optimizer(object):
                                          "Found %s" % str(type(model))
         assert isinstance(dataset, Dataset), "Optimizer input dataset needs to be a Dataset class! " \
                                              "Found %s" % str(type(dataset))
-        assert isinstance(loss, Loss), "Optimizer input loss needs to be a Loss class! " \
-                                       "Found %s" % str(type(loss))
 
-        model_inputs = raise_to_list(model.get_inputs())
-        n_model_inputs = len(model_inputs)
-
-        model_targets = loss.targets or []
-        for input in model_inputs:
-            if input in model_targets:
-                model_targets.remove(input)
-
-        n_model_targets = len(model_targets)
+        n_model_inputs = len(raise_to_list(model.get_inputs()))
+        n_model_targets = len(raise_to_list(model.get_targets()) or [])
         self.unsupervised = (n_model_targets is 0)
         # make sure the number of inputs/targets matches up with the dataset properties
         # train
@@ -171,7 +158,6 @@ class Optimizer(object):
         # now we are happy, we can add them to `self`
         self.model = model
         self.dataset = dataset
-        self.loss = loss
 
         # Learning rate - how drastic of a step do the parameters change
         self.learning_rate = sharedX(learning_rate, 'learning_rate')
@@ -187,6 +173,7 @@ class Optimizer(object):
             self.learning_rate_decay = False
 
         # rest of initial parameters needed for training.
+        self.noise_switches = raise_to_list(self.model.get_switches())
         self.batch_size = batch_size
         self.min_batch_size = min_batch_size
         self.n_epoch = epochs
@@ -218,7 +205,7 @@ class Optimizer(object):
             updates[param] = param - scaled_lr * gradient
         return updates
 
-    def train(self, monitor_channels=None, train_outservice=None, plot=None):
+    def train(self, monitor_channels=None, train_outservice=None, plot=None, additional_cost=None):
         """
         This method performs the training!!!
         It is an online training method that goes over minibatches from the dataset for a number of epochs,
@@ -236,6 +223,9 @@ class Optimizer(object):
             to logs.
         plot : Plot, optional
             The Plot object to use if we want to graph the outputs (uses bokeh server).
+        additional_cost : theano expression or list(theano expression), optional
+            Any additional cost expressions to use during training (things like regularization). These will be summed
+            with the existing cost.
         """
         if not self.model:
             log.error("No self.model for the Optimizer!")
@@ -243,30 +233,49 @@ class Optimizer(object):
                                  "was called from the Model. Try initializing the Optimizer with the model param "
                                  "and calling optimizer.train().")
 
+        #####################################################
+        # handle additional costs (normally regularization) #
+        #####################################################
+        # Create the gradient updates for the model - make sure to handle the possible
+        # list of costs used for pretraining of certain parts of the model.
+        train_costs = raise_to_list(self.model.get_train_cost())
+        # deal with any other additional costs (like regularization, etc.)
+        if additional_cost is not None:
+            additional_costs = raise_to_list(additional_cost)
+            if len(additional_costs) > 1:
+                additional_cost = T.sum(additional_costs)
+
         #########################
         # gradients and updates #
         #########################
-        # Now create the training cost function for the model to use while training - update parameters
-        # gradient!
-        # Need to somehow make w.r.t. params appropriate for the individual training costs.
-        gradients, _ = self.model.get_gradient(cost=train_cost, additional_cost=additional_cost)
-        # clip gradients if we want.
-        gradients = clip_gradients(gradients, self.grad_clip, self.hard_clip)
-        # append to list
-        self.gradients.append(gradients)
+        train_updates = []
+        self.gradients = []
+        for i, train_cost in enumerate(train_costs):
+            # Now create the training cost function for the model to use while training - update parameters
+            # gradient!
+            if len(train_costs) > 1 and additional_cost is not None:
+                log.warning("additional_cost will double count with gradients during layer-wise pretraining!")
+                warnings.warn("additional_cost will double count with gradients during layer-wise pretraining!")
+            # TODO: additional_cost will double count with gradients during layer-wise pretraining.
+            # Need to somehow make w.r.t. params appropriate for the individual training costs.
+            gradients, _ = self.model.get_gradient(cost=train_cost, additional_cost=additional_cost)
+            # clip gradients if we want.
+            gradients = clip_gradients(gradients, self.grad_clip, self.hard_clip)
+            # append to list
+            self.gradients.append(gradients)
 
-        # Calculate the optimizer updates each run
-        # This is where the magic happens for a lot of sub-implementations of SGD!
-        # It tells how to update the params each training epoch
-        gradient_updates = self.get_updates(gradients)
+            # Calculate the optimizer updates each run
+            # This is where the magic happens for a lot of sub-implementations of SGD!
+            # It tells how to update the params each training epoch
+            gradient_updates = self.get_updates(gradients)
 
-        # Combine the updates from the model also if applicable
-        updates = self.model.get_updates()
-        if updates:
-            updates.update(gradient_updates)
-        else:
-            updates = gradient_updates
-        train_updates.append(updates)
+            # Combine the updates from the model also if applicable
+            updates = self.model.get_updates()
+            if updates:
+                updates.update(gradient_updates)
+            else:
+                updates = gradient_updates
+            train_updates.append(updates)
 
         # grab the model parameters to use during training
         self.params = self.model.get_params()
@@ -405,8 +414,11 @@ class Optimizer(object):
         log.info('EPOCH %s', str(self.epoch_counter))
 
         # set the noise switches on for training function! (this is where things like dropout happen)
-        if not self.model.switches_on:
-            self.model.turn_on_switches()
+        switch_vals = []
+        if len(self.noise_switches) > 0 and (self.valid_flag or self.test_flag or self.epoch_counter == 1):
+            log.debug("Turning on %s noise switches", str(len(self.noise_switches)))
+            switch_vals = [switch.get_value() for switch in self.noise_switches]
+            [switch.set_value(1.) for switch in self.noise_switches]
 
         #########
         # train #
@@ -452,8 +464,9 @@ class Optimizer(object):
             plot.update_plots(epoch=self.epoch_counter, monitors=current_mean_monitors)
 
         # set the noise switches off for valid and test sets! we assume unseen data is noisy anyway :)
-        if self.model.switches_on:
-            self.model.turn_off_switches()
+        if len(self.noise_switches) > 0 and (self.valid_flag or self.test_flag):
+            log.debug("Turning off %s noise switches", str(len(self.noise_switches)))
+            [switch.set_value(0.) for switch in self.noise_switches]
 
         #########
         # valid #
@@ -509,6 +522,10 @@ class Optimizer(object):
             # perform the appropriate decay on the decay functions/parameters for this optimizer and model
             for decay_param in self.get_decay_params():
                 decay_param.decay()
+
+        # reset the switches
+        if len(self.noise_switches) > 0:
+            [switch.set_value(val) for switch, val in zip(self.noise_switches, switch_vals)]
 
         # return whether or not to stop this epoch
         return stop
